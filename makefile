@@ -13,3 +13,5 @@ run-counter:
 	./ignore/counter
 
 all-counter : build-counter run-counter
+
+all: all-table all-counter

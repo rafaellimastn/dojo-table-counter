@@ -2,70 +2,128 @@
 #include <stdlib.h>
 #include <string.h>
 
-const long BUFFER_SIZE = 1000;
-const int NUMBER_CITIES = 10;
 typedef struct {
     char *city;
     int counter;
 } city_counter;
 
-void set_array_cities_zero(city_counter *arr, int size);
-int verify_city(char *city, city_counter *array_cities) ;
+const int BUFFER_SIZE = 256;
+
+int verify_city(char *city, city_counter *array_cities, int array_size);
 int add_to_counter(city_counter *arr, int size ,char *string);
-int get_empty_index(city_counter *arr, int size);;
+int get_empty_index(city_counter *arr, int size);
+char *string_copy(char *string);
+city_counter* sort_cities(city_counter *src, int size);
+int find_smallest(city_counter *arr, int size);
+int find_highest(city_counter *arr, int size);
+city_counter* remove_index(city_counter *src, int real_size, int index);
 
 int main() {
     char buffer[BUFFER_SIZE];
-    // city_counter *cities = (city_counter *) malloc(NUMBER_CITIES * sizeof(city_counter));
-    city_counter cities[NUMBER_CITIES];
-    set_array_cities_zero(cities, NUMBER_CITIES);
+    city_counter *cities = (city_counter *) malloc(sizeof(city_counter));
+    memset(cities, 0, sizeof(city_counter));
+
     
-    FILE *read_file = fopen("ignore/cidades.txt", "r");
+    FILE *read_file = fopen("ignore/table.txt", "r");
     if (read_file == NULL) {
         perror("Erro ao abrir o arquivo de leitura.");
         return 1;
     }
-    
-    int current = 0;
-    char current_string[20];
+    int array_size = 0;
+    while(fgets(buffer, sizeof(buffer), read_file) != NULL) {
+        // guarda a linha no buffer
+        int buffer_length = strlen(buffer); 
+        // remove o '\n'
+        memset(&buffer[buffer_length - 1], 0, sizeof(char));
 
-    size_t bytes_read;
-    while((bytes_read = fread(buffer, sizeof(char), BUFFER_SIZE, read_file)) > 0) {
-        int first = 0;
-        for (int j = 0; current < bytes_read; j++) {
-            // limpar string temporaria
-            memset(current_string, 0, sizeof(current_string));
+        char *current_string = string_copy(buffer);
+        // verifica se a linha ja esta no array
+        if(verify_city(current_string, cities, array_size) != -1) {
+            //ja foi contada uma vez
+            int index = add_to_counter(cities, array_size, current_string);
+        } else {
+            // ainda nao foi contada
+            
+            // aloca memoria com uma posição maior
+            int empty_index = array_size;
+            array_size++;
+            city_counter *temp_city_array = cities;
+            cities = (city_counter *) malloc(array_size * sizeof(city_counter));
+            memmove(cities, temp_city_array, array_size * sizeof(city_counter));
+            free(temp_city_array);
 
-            // passa o valor da linha atual para a string temporaria
-            while(buffer[current] != '\n') {
-                if(current >= bytes_read) {
-                    break;
-                }
-                current++;
-            }
-            memmove(current_string, &buffer[first], (current - first) * sizeof(char));
-            first = current + 1;
-             //comparar se a cidade esta ou nao no array
-            if (verify_city(current_string, cities) != -1) {
-                // ja foi contada pelo menos uma vez
-                int index = add_to_counter(cities, NUMBER_CITIES, current_string);
-            } else {
-                // primeiro vez q a cidade aparece
-                int empty_index = get_empty_index(cities, NUMBER_CITIES );
-                cities[empty_index].city = (char*) malloc((strlen(current_string) + 1) * sizeof(char));
-                strcpy(cities[empty_index].city, current_string);
-                cities[empty_index].counter++; 
-            }
-            current++;
+            // indexa os valores 
+            cities[empty_index].city = (char*) malloc((strlen(current_string) + 1) * sizeof(char));
+            strcpy(cities[empty_index].city, current_string);
+            cities[empty_index].counter = 1;
         }
     }
-    for (int i = 0; i < NUMBER_CITIES; i++){
-        printf("Cidade: %s -> Contador: %d\n", cities[i].city, cities[i].counter);
+
+    cities = sort_cities(cities, array_size);
+    for (int i = 0; i < array_size; i++){
+        printf("%s: %d\n", cities[i].city, cities[i].counter);
     }
     return 0;
 }
 
+int find_highest(city_counter *arr, int size) {
+    int highest_index = 0;
+    for (int i = 0; i < size; i++) {
+        if(arr[highest_index].counter < arr[i].counter) {
+            highest_index = i;
+        }
+    }
+    return highest_index;
+}
+
+int find_smallest(city_counter *arr, int size) {
+    int smallest_index = 0;
+    for (int i = 0; i < size; i++) {
+        if(arr[smallest_index].counter > arr[i].counter) {
+            smallest_index = i;
+        }
+    }
+    return smallest_index;
+}
+
+city_counter* sort_cities(city_counter *src, int src_size) {
+    city_counter *dest = (city_counter *) malloc(src_size * sizeof(city_counter));
+    int length = src_size;
+    for(int i = 0; i < length; i++) {
+        // find smallest index
+        int smallest_index = find_highest(src, src_size);
+
+        // add smallest index to a new array
+        memmove(&dest[i], &src[smallest_index], sizeof(city_counter));
+
+        // remove index from the array
+        src_size--;
+        src = remove_index(src, src_size, smallest_index);
+    }
+    return dest;
+}
+
+city_counter* remove_index(city_counter *src, int new_size, int index) {
+    int new_index = 0;
+    int old_size = new_size + 1;
+    city_counter *temp = src;
+    src = (city_counter *) malloc(new_size * sizeof(city_counter));
+    for(int i = 0; i < old_size; i++) {
+        if(i != index) {
+            memmove(&src[new_index], &temp[i], sizeof(city_counter));
+            new_index++;
+        } else {
+
+            continue;
+        }
+    }
+    free(temp);
+    return src;
+}
+
 int get_empty_index(city_counter *arr, int size) {
+    if (size == 0) return 0;
+
     for(int i = 0; i < size; i++) {
         if(arr[i].counter == 0) {
             return i;
@@ -79,25 +137,29 @@ int add_to_counter(city_counter *arr, int size ,char *string) {
         if(strcmp(arr[i].city, string) == 0) {
             arr[i].counter++;
             return i;
+
         }
     }
 }
 
-void set_array_cities_zero(city_counter *arr, int size) {
+int verify_city(char *city, city_counter *array_cities, int size) {
+    // array vazio
+    if (size == 0) return -1;
+
     for (int i = 0; i < size; i++) {
-        arr[i].city = "";
-        arr[i].counter = 0;
-    }
-}
-
-int verify_city(char *city, city_counter *array_cities) {
-
-    for (int i = 0; i < NUMBER_CITIES; i++) {
         if(strcmp(city, array_cities[i].city) == 0) {
             // ja esta no array
             return i;
         }
     }
+
     // nao esta no array
     return -1;
+}
+
+char *string_copy(char *string) {
+    char *return_string = malloc(strlen (string) + 1);
+    if (return_string == NULL) return NULL;
+    strcpy(return_string, string);
+    return return_string;
 }
