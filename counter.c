@@ -16,7 +16,8 @@ int get_empty_index(city_counter *arr, int size);;
 
 int main() {
     char buffer[BUFFER_SIZE];
-    city_counter *cities = (city_counter *) malloc(NUMBER_CITIES * sizeof(city_counter));
+    // city_counter *cities = (city_counter *) malloc(NUMBER_CITIES * sizeof(city_counter));
+    city_counter cities[NUMBER_CITIES];
     set_array_cities_zero(cities, NUMBER_CITIES);
     
     FILE *read_file = fopen("ignore/cidades.txt", "r");
@@ -25,43 +26,41 @@ int main() {
         return 1;
     }
     
-    int current, first; current = first = 0;
+    int current = 0;
     char current_string[20];
 
     size_t bytes_read;
     while((bytes_read = fread(buffer, sizeof(char), BUFFER_SIZE, read_file)) > 0) {
-        for (int j = 0; j < bytes_read; j++) {
-            int i = 0;
+        int first = 0;
+        for (int j = 0; current < bytes_read; j++) {
             // limpar string temporaria
             memset(current_string, 0, sizeof(current_string));
+
             // passa o valor da linha atual para a string temporaria
             while(buffer[current] != '\n') {
                 if(current >= bytes_read) {
                     break;
                 }
-                // passar o valor da linha para a string temporaria
-                current_string[i] = buffer[current];
-                i++;
                 current++;
             }
+            memmove(current_string, &buffer[first], (current - first) * sizeof(char));
+            first = current + 1;
              //comparar se a cidade esta ou nao no array
             if (verify_city(current_string, cities) != -1) {
                 // ja foi contada pelo menos uma vez
                 int index = add_to_counter(cities, NUMBER_CITIES, current_string);
-                printf("Cidade: %s e Contador: %d\n", current_string, cities[index].counter); 
             } else {
                 // primeiro vez q a cidade aparece
                 int empty_index = get_empty_index(cities, NUMBER_CITIES );
-                cities[empty_index].city = (char*) malloc(strlen(current_string) * sizeof(char));
+                cities[empty_index].city = (char*) malloc((strlen(current_string) + 1) * sizeof(char));
                 strcpy(cities[empty_index].city, current_string);
-                cities[empty_index].counter++;
-                printf("Cidade: %s e Contador: %d\n", current_string, cities[empty_index].counter); 
+                cities[empty_index].counter++; 
             }
-            current++;          
-            if(current > bytes_read) {
-                    break;
-            }
+            current++;
         }
+    }
+    for (int i = 0; i < NUMBER_CITIES; i++){
+        printf("Cidade: %s -> Contador: %d\n", cities[i].city, cities[i].counter);
     }
     return 0;
 }
